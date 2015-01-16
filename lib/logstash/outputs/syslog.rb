@@ -80,9 +80,11 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # message id for syslog message
   config :msgid, :validate => :string, :default => "-"
 
+  # structured data for syslog message (rfc5424 only)
+  config :structured_data, :validate => :string, :default => "-"
+
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
-
   
   public
   def register
@@ -127,9 +129,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
       syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event["message"]
     else
-      msgid = event.sprintf(@msgid)
+      msgid = event.sprintf(@msgid) 
+      structured_data = "[LOGSTASH@#{LOGSTASH_VERSION} #{event.sprintf(@structured_data)}]" unless @structured_data == '-'
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZ}")
-      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event["message"]
+      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" "+structured_data+" "+event["message"]
     end
 
     begin
