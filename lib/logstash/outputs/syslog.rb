@@ -10,7 +10,6 @@ require "date"
 # UDP or TCP syslog transport is supported
 class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config_name "syslog"
-  milestone 1
 
   FACILITY_LABELS = [
     "kernel",
