@@ -130,7 +130,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event["message"]
     else
       msgid = event.sprintf(@msgid) 
-      structured_data = "[LOGSTASH@#{LOGSTASH_VERSION} #{event.sprintf(@structured_data)}]" unless @structured_data == '-'
+      structured_data = "[#{event.sprintf(@structured_data)}]" unless @structured_data == '-'
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZ}")
       syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" "+structured_data+" "+event["message"]
     end
