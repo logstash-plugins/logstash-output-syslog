@@ -51,7 +51,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # syslog server address to connect to
   config :host, :validate => :string, :required => true
-  
+
   # syslog server port to connect to
   config :port, :validate => :number, :required => true
 
@@ -75,14 +75,14 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # process id for syslog message
   config :procid, :validate => :string, :default => "-"
- 
+
   # message id for syslog message
   config :msgid, :validate => :string, :default => "-"
 
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
-  
+
   public
   def register
       @client_socket = nil
@@ -96,7 +96,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   private
   def rfc3164?
     @rfc == "rfc3164"
-  end 
+  end
 
   private
   def connect
@@ -111,6 +111,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   public
   def receive(event)
     return unless output?(event)
+    return if event['tags'].include?('_jsonparsefailure')
 
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
@@ -124,11 +125,11 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     if rfc3164?
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event["message"]
+      syslog_msg = "<#{priority}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event['message']}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZ}")
-      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event["message"]
+      syslog_msg = "<#{priority}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event['message']}"
     end
 
     begin
