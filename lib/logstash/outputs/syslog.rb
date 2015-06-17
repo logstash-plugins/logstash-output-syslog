@@ -111,7 +111,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   public
   def receive(event)
     return unless output?(event)
-    return if event['tags'].include?('_jsonparsefailure')
+    return if (event['tags'] || []).include?('_jsonparsefailure')
 
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
