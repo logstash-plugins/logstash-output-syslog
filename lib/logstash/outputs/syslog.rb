@@ -136,7 +136,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event.sprintf(@message)
     else
       msgid = event.sprintf(@msgid)
-      timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZ}")
+      timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
       syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event.sprintf(@message)
     end
 
