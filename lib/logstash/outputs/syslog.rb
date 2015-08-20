@@ -7,7 +7,13 @@ require "date"
 # Send events to a syslog server.
 #
 # You can send messages compliant with RFC3164 or RFC5424
-# UDP or TCP syslog transport is supported
+# using either UDP or TCP as the transport protocol.
+#
+# By default the contents of the `message` field will be shipped as
+# the free-form message text part of the emitted syslog message. If
+# your messages don't have a `message` field or if you for some other
+# reason want to change the emitted message, modify the `message`
+# configuration option.
 class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config_name "syslog"
 
@@ -75,6 +81,9 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # process id for syslog message
   config :procid, :validate => :string, :default => "-"
+
+  # message text to log
+  config :message, :validate => :string, :default => "%{message}"
  
   # message id for syslog message
   config :msgid, :validate => :string, :default => "-"
@@ -124,11 +133,11 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     if rfc3164?
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event["message"]
+      syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event.sprintf(@message)
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZ}")
-      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event["message"]
+      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event.sprintf(@message)
     end
 
     begin
