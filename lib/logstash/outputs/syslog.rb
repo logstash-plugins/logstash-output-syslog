@@ -119,7 +119,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   public
   def receive(event)
-    return unless output?(event)
+    
 
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
