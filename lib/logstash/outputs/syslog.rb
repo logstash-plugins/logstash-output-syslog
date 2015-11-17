@@ -57,9 +57,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # syslog server address to connect to
   config :host, :validate => :string, :required => true
-  
+
   # syslog server port to connect to
   config :port, :validate => :number, :required => true
+
+  # when connection fails, retry interval in sec.
+  config :reconnect_interval, :validate => :number, :default => 1
 
   # syslog server protocol. you can choose between udp and tcp
   config :protocol, :validate => ["tcp", "udp"], :default => "udp"
@@ -84,71 +87,65 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # message text to log
   config :message, :validate => :string, :default => "%{message}"
- 
+
   # message id for syslog message
   config :msgid, :validate => :string, :default => "-"
 
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
-  
-  public
   def register
-      @client_socket = nil
+    @client_socket = nil
+
+    facility_code = FACILITY_LABELS.index(@facility)
+    severity_code = SEVERITY_LABELS.index(@severity)
+    @priority = (facility_code * 8) + severity_code
+
+    # use instance variable to avoid string comparison for each event
+    @is_rfc3164 = (@rfc == "rfc3164")
   end
 
-  private
-  def udp?
-    @protocol == "udp"
-  end
-
-  private
-  def rfc3164?
-    @rfc == "rfc3164"
-  end 
-
-  private
-  def connect
-    if udp?
-        @client_socket = UDPSocket.new
-        @client_socket.connect(@host, @port)
-    else
-        @client_socket = TCPSocket.new(@host, @port)
-    end
-  end
-
-  public
   def receive(event)
-    
-
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
 
-    facility_code = FACILITY_LABELS.index(@facility)
-
-    severity_code = SEVERITY_LABELS.index(@severity)
-
-    priority = (facility_code * 8) + severity_code
-
-    if rfc3164?
+    if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<"+priority.to_s()+">"+timestamp+" "+sourcehost+" "+appname+"["+procid+"]: "+event.sprintf(@message)
+      syslog_msg = "<#{@priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<"+priority.to_s()+">1 "+timestamp+" "+sourcehost+" "+appname+" "+procid+" "+msgid+" - "+event.sprintf(@message)
+      syslog_msg = "<#{@priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event.sprintf(@message)}"
     end
 
     begin
-      connect unless @client_socket
+      @client_socket ||= connect
       @client_socket.write(syslog_msg + "\n")
     rescue => e
-      @logger.warn(@protocol+" output exception", :host => @host, :port => @port,
-                 :exception => e, :backtrace => e.backtrace)
+      @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event", :host => @host, :port => @port, :exception => e, :backtrace => e.backtrace, :event => event)
       @client_socket.close rescue nil
       @client_socket = nil
+
+      sleep(@reconnect_interval)
+      retry
     end
   end
-end
 
+  private
+
+  def udp?
+    @protocol == "udp"
+  end
+
+  def connect
+    socket = nil
+    if udp?
+      socket = UDPSocket.new
+      socket.connect(@host, @port)
+    else
+      socket = TCPSocket.new(@host, @port)
+    end
+    socket
+  end
+end
