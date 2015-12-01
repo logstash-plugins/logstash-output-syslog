@@ -94,8 +94,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
+  # use codec to format message (instead of setting message)
+  config :usecodec, :validate => :boolean, :default => false
+
   def register
     @client_socket = nil
+    @codec.on_event(&method(:publish))
 
     facility_code = FACILITY_LABELS.index(@facility)
     severity_code = SEVERITY_LABELS.index(@severity)
@@ -106,17 +110,31 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   end
 
   def receive(event)
+    if @usecodec
+      @codec.encode(event)
+    else
+      publish(event, nil)
+    end
+  end
+
+  def publish(event, payload)
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
 
+    if payload.nil?
+      message = event.sprintf(@message)
+    else
+      message = payload.to_s.gsub(/[\n]/, '\n')
+    end
+
     if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<#{@priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
+      syslog_msg = "<#{@priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<#{@priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event.sprintf(@message)}"
+      syslog_msg = "<#{@priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
     end
 
     begin

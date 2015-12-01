@@ -47,4 +47,18 @@ describe LogStash::Outputs::Syslog do
 
     it_behaves_like "syslog output"
   end
+
+  context "use codec by default plain)" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "usecodec" => true } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: [0-9TZ:.+-]+ baz bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use codec json" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "usecodec" => true, "codec" => "json" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: {\"message\":\"bar\",\"host\":\"baz\",\"@version\":\"1\",\"@timestamp\":\"[0-9TZ:.+-]+\"}\n/m }
+
+    it_behaves_like "syslog output"
+  end
 end
