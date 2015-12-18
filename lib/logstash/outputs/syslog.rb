@@ -2,6 +2,7 @@
 require "logstash/outputs/base"
 require "logstash/namespace"
 require "date"
+require "logstash/codecs/plain"
 
 
 # Send events to a syslog server.
@@ -94,11 +95,14 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
-  # use codec to format message (instead of setting message)
-  config :usecodec, :validate => :boolean, :default => false
-
   def register
     @client_socket = nil
+
+    if @codec.instance_of? LogStash::Codecs::Plain
+      if @codec.config["format"].nil?
+        @codec = LogStash::Codecs::Plain.new({"format" => @message})
+      end
+    end
     @codec.on_event(&method(:publish))
 
     facility_code = FACILITY_LABELS.index(@facility)
@@ -110,11 +114,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   end
 
   def receive(event)
-    if @usecodec
-      @codec.encode(event)
-    else
-      publish(event, nil)
-    end
+    @codec.encode(event)
   end
 
   def publish(event, payload)
@@ -122,11 +122,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
 
-    if payload.nil?
-      message = event.sprintf(@message)
-    else
-      message = payload.to_s.gsub(/[\n]/, '\n')
-    end
+    message = payload.to_s.gsub(/[\n]/, '\n')
 
     if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
