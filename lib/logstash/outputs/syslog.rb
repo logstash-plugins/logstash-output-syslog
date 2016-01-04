@@ -121,12 +121,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     # fallback to pri 13 (facility 1, severity 5)
     if @use_labels
-      facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) or 1)
-      severity_code = (SEVERITY_LABELS.index(event.sprintf(@severity)) or 5)
+      facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) || 1)
+      severity_code = (SEVERITY_LABELS.index(event.sprintf(@severity)) || 5)
       priority = (facility_code * 8) + severity_code
     else
       priority = Integer(event.sprintf(@priority)) rescue 13
-      priority = 13 if (priority < 0 or priority > 191)
+      priority = 13 if (priority < 0 || priority > 191)
     end
 
     if @rfc3164?
