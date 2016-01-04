@@ -69,7 +69,7 @@ describe LogStash::Outputs::Syslog do
     let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz" }) }
     let(:options) { {"use_labels" => false, "host" => "foo", "port" => "123" } }
     let(:output) { /^<13>.+baz LOGSTASH\[-\]: bar\n/m }
-    
+
     it_behaves_like "syslog output"
   end
 
