@@ -47,4 +47,44 @@ describe LogStash::Outputs::Syslog do
 
     it_behaves_like "syslog output"
   end
+
+  context "sprintf rfc 3164" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "facility" => "mail", "severity" => "critical", "appname" => "appname", "procid" => "1000" }) }
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "%{facility}", "severity" => "%{severity}", "appname" => "%{appname}", "procid" => "%{procid}"} }
+    let(:output) { /^<18>.+baz appname\[1000\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "sprintf rfc 5424" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "facility" => "mail", "severity" => "critical", "appname" => "appname", "procid" => "1000", "msgid" => "2000" }) }
+    let(:options) { {"rfc" => "rfc5424", "host" => "foo", "port" => "123", "facility" => "%{facility}", "severity" => "%{severity}", "appname" => "%{appname}", "procid" => "%{procid}", "msgid" => "%{msgid}"} }
+    let(:output) { /^<18>1 .+baz appname 1000 2000 - bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use_labels == false, default" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz" }) }
+    let(:options) { {"use_labels" => false, "host" => "foo", "port" => "123" } }
+    let(:output) { /^<13>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use_labels == false, syslog_pri" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "syslog_pri" => "18" }) }
+    let(:options) { {"use_labels" => false, "host" => "foo", "port" => "123" } }
+    let(:output) { /^<18>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use_labels == false, sprintf" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "priority" => "18" }) }
+    let(:options) { {"use_labels" => false, "host" => "foo", "port" => "123", "priority" => "%{priority}" } }
+    let(:output) { /^<18>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
 end
