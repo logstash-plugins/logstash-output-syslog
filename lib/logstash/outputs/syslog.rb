@@ -69,7 +69,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # use label parsing for severity and facility levels
   # use priority field if set to false
-  config :use_labels, :validate => :boolean, :default => false
+  config :use_labels, :validate => :boolean, :default => true
 
   # syslog priority
   config :priority, :validate => :string, :default => "%{syslog_pri}"
