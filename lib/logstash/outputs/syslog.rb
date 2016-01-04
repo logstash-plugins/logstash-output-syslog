@@ -67,11 +67,20 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog server protocol. you can choose between udp and tcp
   config :protocol, :validate => ["tcp", "udp"], :default => "udp"
 
+  # use label parsing for severity and facility levels
+  # use priority field if set to false
+  config :use_labels, :validate => :boolean, :default => false
+
+  # syslog priority
+  config :priority, :validate => :string, :default => "%{syslog_pri}"
+
   # facility label for syslog message
-  config :facility, :validate => FACILITY_LABELS, :required => true
+  # default fallback to user-level as in rfc3164
+  config :facility, :validate => :string, :default => "user-level"
 
   # severity label for syslog message
-  config :severity, :validate => SEVERITY_LABELS, :required => true
+  # default fallback to notice as in rfc3164
+  config :severity, :validate => :string, :default => "notice"
 
   # source host for syslog message
   config :sourcehost, :validate => :string, :default => "%{host}"
@@ -110,7 +119,17 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
 
-    if @is_rfc3164
+    # fallback to pri 13 (facility 1, severity 5)
+    if @use_labels
+      facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) or 1)
+      severity_code = (SEVERITY_LABELS.index(event.sprintf(@severity)) or 5)
+      priority = (facility_code * 8) + severity_code
+    else
+      priority = Integer(event.sprintf(@priority)) rescue 13
+      priority = 13 if (priority < 0 or priority > 191)
+    end
+
+    if @rfc3164?
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
       syslog_msg = "<#{@priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
     else
