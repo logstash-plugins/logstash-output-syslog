@@ -72,32 +72,43 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :use_labels, :validate => :boolean, :default => true
 
   # syslog priority
+  # The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :priority, :validate => :string, :default => "%{syslog_pri}"
 
   # facility label for syslog message
   # default fallback to user-level as in rfc3164
+  # The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :facility, :validate => :string, :default => "user-level"
 
   # severity label for syslog message
   # default fallback to notice as in rfc3164
+  # The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :severity, :validate => :string, :default => "notice"
 
-  # source host for syslog message
+  # source host for syslog message. The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :sourcehost, :validate => :string, :default => "%{host}"
 
   # timestamp for syslog message
   config :timestamp, :validate => :string, :default => "%{@timestamp}", :deprecated => "This setting is no longer necessary. The RFC setting will determine what time format is used."
 
-  # application name for syslog message
+  # application name for syslog message. The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :appname, :validate => :string, :default => "LOGSTASH"
 
-  # process id for syslog message
+  # process id for syslog message. The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :procid, :validate => :string, :default => "-"
 
-  # message text to log
+  # message text to log. The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :message, :validate => :string, :default => "%{message}"
 
-  # message id for syslog message
+  # message id for syslog message. The new value can include `%{foo}` strings
+  # to help you build a new value from other parts of the event.
   config :msgid, :validate => :string, :default => "-"
 
   # syslog message format: you can choose between rfc3164 or rfc5424
