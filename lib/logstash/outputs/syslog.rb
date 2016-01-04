@@ -106,10 +106,6 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   def register
     @client_socket = nil
 
-    facility_code = FACILITY_LABELS.index(@facility)
-    severity_code = SEVERITY_LABELS.index(@severity)
-    @priority = (facility_code * 8) + severity_code
-
     # use instance variable to avoid string comparison for each event
     @is_rfc3164 = (@rfc == "rfc3164")
   end
@@ -129,13 +125,13 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       priority = 13 if (priority < 0 || priority > 191)
     end
 
-    if @rfc3164?
+    if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<#{@priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
+      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<#{@priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event.sprintf(@message)}"
+      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event.sprintf(@message)}"
     end
 
     begin
