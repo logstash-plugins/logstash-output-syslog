@@ -122,7 +122,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
 
-    message = payload.to_s.gsub(/[\n]/, '\n')
+    message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
     if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")

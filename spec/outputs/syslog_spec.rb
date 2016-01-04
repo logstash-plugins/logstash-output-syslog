@@ -63,4 +63,25 @@ describe LogStash::Outputs::Syslog do
 
     it_behaves_like "syslog output"
   end
+
+  context "escape carriage return, newline and newline to \\n" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "foo\r\nbar\nbaz" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: foo\\nbar\\nbaz\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "tailing newline" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "%{message}\n" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "tailing carriage return and newline (windows)" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "%{message}\n" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
 end
