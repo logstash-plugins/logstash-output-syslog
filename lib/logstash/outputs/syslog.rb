@@ -149,6 +149,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       @client_socket ||= connect
       @client_socket.write(syslog_msg + "\n")
     rescue => e
+      # We don't expect udp connections to fail because they are stateless, but ...
+      # udp connections may fail/raise an exception if used with localhost/127.0.0.1
+      return if udp?
+
       @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event", :host => @host, :port => @port, :exception => e, :backtrace => e.backtrace, :event => event)
       @client_socket.close rescue nil
       @client_socket = nil
