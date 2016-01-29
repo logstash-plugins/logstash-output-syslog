@@ -2,6 +2,7 @@
 
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/outputs/syslog"
+require "logstash/codecs/plain"
 
 describe LogStash::Outputs::Syslog do
 
@@ -84,6 +85,42 @@ describe LogStash::Outputs::Syslog do
     let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "priority" => "18" }) }
     let(:options) { {"use_labels" => false, "host" => "foo", "port" => "123", "priority" => "%{priority}" } }
     let(:output) { /^<18>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use plain codec with format set" do
+    let(:plain) { LogStash::Codecs::Plain.new({"format" => "%{host} %{message}"}) }
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "codec" => plain} }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: baz bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "use codec json" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "codec" => "json" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: {\"message\":\"bar\",\"host\":\"baz\",\"@version\":\"1\",\"@timestamp\":\"[0-9TZ:.+-]+\"}\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "escape carriage return, newline and newline to \\n" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "foo\r\nbar\nbaz" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: foo\\nbar\\nbaz\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "tailing newline" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "%{message}\n" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "tailing carriage return and newline (windows)" do
+    let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "%{message}\n" } }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: bar\n/m }
 
     it_behaves_like "syslog output"
   end

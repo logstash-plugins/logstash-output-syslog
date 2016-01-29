@@ -2,6 +2,7 @@
 require "logstash/outputs/base"
 require "logstash/namespace"
 require "date"
+require "logstash/codecs/plain"
 
 
 # Send events to a syslog server.
@@ -133,15 +134,28 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     if ssl?
       @ssl_context = setup_ssl
     end
+    
+    if @codec.instance_of? LogStash::Codecs::Plain
+      if @codec.config["format"].nil?
+        @codec = LogStash::Codecs::Plain.new({"format" => @message})
+      end
+    end
+    @codec.on_event(&method(:publish))
 
     # use instance variable to avoid string comparison for each event
     @is_rfc3164 = (@rfc == "rfc3164")
   end
 
   def receive(event)
+    @codec.encode(event)
+  end
+
+  def publish(event, payload)
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
+
+    message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
     # fallback to pri 13 (facility 1, severity 5)
     if @use_labels
@@ -155,11 +169,11 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{event.sprintf(@message)}"
+      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{event.sprintf(@message)}"
+      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
     end
 
     begin
