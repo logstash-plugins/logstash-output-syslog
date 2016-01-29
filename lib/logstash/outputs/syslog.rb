@@ -29,12 +29,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     "network news",
     "uucp",
     "clock",
-    "security/authorization",
     "ftp",
     "ntp",
     "log audit",
     "log alert",
-    "clock",
     "local0",
     "local1",
     "local2",
@@ -65,8 +63,23 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # when connection fails, retry interval in sec.
   config :reconnect_interval, :validate => :number, :default => 1
 
-  # syslog server protocol. you can choose between udp and tcp
-  config :protocol, :validate => ["tcp", "udp"], :default => "udp"
+  # syslog server protocol. you can choose between udp, tcp and ssl/tls over tcp
+  config :protocol, :validate => ["tcp", "udp", "ssl-tcp"], :default => "udp"
+
+  # Verify the identity of the other end of the SSL connection against the CA.
+  config :ssl_verify, :validate => :boolean, :default => false
+
+  # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
+  config :ssl_cacert, :validate => :path
+
+  # SSL certificate path
+  config :ssl_cert, :validate => :path
+
+  # SSL key path
+  config :ssl_key, :validate => :path
+
+  # SSL key passphrase
+  config :ssl_key_passphrase, :validate => :password, :default => nil
 
   # use label parsing for severity and facility levels
   # use priority field if set to false
@@ -118,6 +131,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   def register
     @client_socket = nil
 
+    if ssl?
+      @ssl_context = setup_ssl
+    end
+    
     if @codec.instance_of? LogStash::Codecs::Plain
       if @codec.config["format"].nil?
         @codec = LogStash::Codecs::Plain.new({"format" => @message})
@@ -163,6 +180,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       @client_socket ||= connect
       @client_socket.write(syslog_msg + "\n")
     rescue => e
+      # We don't expect udp connections to fail because they are stateless, but ...
+      # udp connections may fail/raise an exception if used with localhost/127.0.0.1
+      return if udp?
+
       @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event", :host => @host, :port => @port, :exception => e, :backtrace => e.backtrace, :event => event)
       @client_socket.close rescue nil
       @client_socket = nil
@@ -178,6 +199,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     @protocol == "udp"
   end
 
+  def ssl?
+    @protocol == "ssl-tcp"
+  end
+
   def connect
     socket = nil
     if udp?
@@ -185,7 +210,39 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       socket.connect(@host, @port)
     else
       socket = TCPSocket.new(@host, @port)
+      if ssl?
+        socket = OpenSSL::SSL::SSLSocket.new(socket, @ssl_context)
+        begin
+          socket.connect
+        rescue OpenSSL::SSL::SSLError => ssle
+          @logger.error("SSL Error", :exception => ssle,
+                        :backtrace => ssle.backtrace)
+          # NOTE(mrichar1): Hack to prevent hammering peer
+          sleep(5)
+          raise
+        end
+      end
     end
     socket
+  end
+
+  def setup_ssl
+    require "openssl"
+    ssl_context = OpenSSL::SSL::SSLContext.new
+    ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
+    ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
+    if @ssl_verify
+      cert_store = OpenSSL::X509::Store.new
+      # Load the system default certificate path to the store
+      cert_store.set_default_paths
+      if File.directory?(@ssl_cacert)
+        cert_store.add_path(@ssl_cacert)
+      else
+        cert_store.add_file(@ssl_cacert)
+      end
+      ssl_context.cert_store = cert_store
+      ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+    end
+    ssl_context
   end
 end
