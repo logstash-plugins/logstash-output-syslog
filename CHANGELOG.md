@@ -1,3 +1,5 @@
+# 2.1.2
+  - New dependency requirements for logstash-core for the 5.0 release
 ## 2.1.1
  - Add SSL/TLS support to syslog output plugin (thanks @breml)
  - Added ability to use codecs for this output (thanks @breml)
