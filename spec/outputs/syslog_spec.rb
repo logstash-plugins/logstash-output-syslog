@@ -3,6 +3,7 @@
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/outputs/syslog"
 require "logstash/codecs/plain"
+require "json"
 
 describe LogStash::Outputs::Syslog do
 
@@ -99,9 +100,20 @@ describe LogStash::Outputs::Syslog do
 
   context "use codec json" do
     let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "codec" => "json" } }
-    let(:output) { /^<0>.+baz LOGSTASH\[-\]: {\"@timestamp\":\"[0-9TZ:.+-]+\",\"host\":\"baz\",\"@version\":\"1\",\"message\":\"bar\"}\n/m }
 
-    it_behaves_like "syslog output"
+    it "should write event encoded with json codec" do
+      expect(subject).to receive(:connect).and_return(socket)
+      expect(socket).to receive(:write) do |arg|
+        message = arg[/^<0>.+baz LOGSTASH\[-\]: (.*)/, 1]
+        expect(message).not_to be_nil
+        message_json = JSON.parse(message)
+        expect(message_json).to include("@timestamp")
+        expect(message_json).to include("host" => "baz")
+        expect(message_json).to include("@version" => "1")
+        expect(message_json).to include("message" => "bar")
+      end
+      subject.receive(event)
+    end
   end
 
   context "escape carriage return, newline and newline to \\n" do
