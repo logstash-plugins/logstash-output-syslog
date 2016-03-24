@@ -99,7 +99,7 @@ describe LogStash::Outputs::Syslog do
 
   context "use codec json" do
     let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "codec" => "json" } }
-    let(:output) { /^<0>.+baz LOGSTASH\[-\]: {\"message\":\"bar\",\"host\":\"baz\",\"@version\":\"1\",\"@timestamp\":\"[0-9TZ:.+-]+\"}\n/m }
+    let(:output) { /^<0>.+baz LOGSTASH\[-\]: {\"@timestamp\":\"[0-9TZ:.+-]+\",\"host\":\"baz\",\"@version\":\"1\",\"message\":\"bar\"}\n/m }
 
     it_behaves_like "syslog output"
   end
