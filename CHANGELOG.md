@@ -1,11 +1,19 @@
-# 2.1.5
+## 3.0.0
+ - breaking,config: Remove deprecated `timestamp` config.
+ - internal: migrate to Logstash Event API 2.0
+
+## 2.1.5
  - [Internal] test fix to not depend on json order
-# 2.1.4
+
+## 2.1.4
  - [Internal] fix tests
-# 2.1.3
+
+## 2.1.3
   - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
-# 2.1.2
+
+## 2.1.2
   - New dependency requirements for logstash-core for the 5.0 release
+
 ## 2.1.1
  - Add SSL/TLS support to syslog output plugin (thanks @breml)
  - Added ability to use codecs for this output (thanks @breml)
