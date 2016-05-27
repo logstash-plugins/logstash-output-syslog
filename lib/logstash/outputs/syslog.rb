@@ -106,9 +106,6 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # to help you build a new value from other parts of the event.
   config :sourcehost, :validate => :string, :default => "%{host}"
 
-  # timestamp for syslog message
-  config :timestamp, :validate => :string, :default => "%{@timestamp}", :deprecated => "This setting is no longer necessary. The RFC setting will determine what time format is used."
-
   # application name for syslog message. The new value can include `%{foo}` strings
   # to help you build a new value from other parts of the event.
   config :appname, :validate => :string, :default => "LOGSTASH"
