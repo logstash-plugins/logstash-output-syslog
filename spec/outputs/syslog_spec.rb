@@ -119,6 +119,13 @@ describe LogStash::Outputs::Syslog do
     end
   end
 
+  context "use relay mode" do
+    let(:options) { {"host" => "foo", "port" => "123", "relay_mode" => true, "facility" => "kernel", "severity" => "emergency", "message" => "foo bar" } }
+    let(:output) { /^foo bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
   context "escape carriage return, newline and newline to \\n" do
     let(:options) { {"host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency", "message" => "foo\r\nbar\nbaz" } }
     let(:output) { /^<0>#{RFC3164_DATE_TIME_REGEX} baz LOGSTASH\[-\]: foo\\nbar\\nbaz\n/m }
