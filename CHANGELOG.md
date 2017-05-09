@@ -1,3 +1,6 @@
+## 3.0.2
+  - Added rfc3164 compatibility for timestamp (space / no zero-padding) and made the procid optional. Ref: https://www.ietf.org/rfc/rfc3164.txt
+
 ## 3.0.1
   - Relax constraint on logstash-core-plugin-api to >= 1.60 <= 2.99
 
