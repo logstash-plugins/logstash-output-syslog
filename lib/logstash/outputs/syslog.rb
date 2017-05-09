@@ -165,7 +165,6 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     end
 
     if @is_rfc3164
-      procid_rfc3164 = "["+procid+"]"
       timestamp_tmp = event.sprintf("%{+MMM dd HH:mm:ss}")
       
       if timestamp_tmp[4].to_i == 0
@@ -173,8 +172,13 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       else
         timestamp = event.sprintf("%{+MMM d HH:mm:ss}") 
       end
+      
+      if @procid
+        syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
+      else
+        syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}: #{message}"
+      end
 
-      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}#{procid_rfc3164}: #{message}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
