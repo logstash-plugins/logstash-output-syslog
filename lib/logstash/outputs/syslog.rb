@@ -125,13 +125,17 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
+  # In relay mode, messages are passed through as-is, without tainting them
+  # with extra fields such as priority, timestamp, source host etc.
+  config :relay_mode, :validate => :boolean, :default => false
+
   def register
     @client_socket = nil
 
     if ssl?
       @ssl_context = setup_ssl
     end
-    
+
     if @codec.instance_of? LogStash::Codecs::Plain
       if @codec.config["format"].nil?
         @codec = LogStash::Codecs::Plain.new({"format" => @message})
@@ -164,7 +168,9 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       priority = 13 if (priority < 0 || priority > 191)
     end
 
-    if @is_rfc3164
+    if @relay_mode
+      syslog_msg = message
+    elsif @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
       syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
     else
