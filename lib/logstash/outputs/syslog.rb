@@ -112,7 +112,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # process id for syslog message. The new value can include `%{foo}` strings
   # to help you build a new value from other parts of the event.
-  config :procid, :validate => :string, :default => "-"
+  config :procid, :validate => :string, :default => nil 
 
   # message text to log. The new value can include `%{foo}` strings
   # to help you build a new value from other parts of the event.
@@ -165,8 +165,20 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     end
 
     if @is_rfc3164
-      timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
+      timestamp_tmp = event.sprintf("%{+MMM dd HH:mm:ss}")
+      
+      if timestamp_tmp[4].to_i == 0
+        timestamp = event.sprintf("%{+MMM  d HH:mm:ss}") 
+      else
+        timestamp = event.sprintf("%{+MMM d HH:mm:ss}") 
+      end
+      
+      if @procid
+        syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
+      else
+        syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}: #{message}"
+      end
+
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
