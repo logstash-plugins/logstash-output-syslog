@@ -56,22 +56,16 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # syslog server address to connect to
   config :host, :validate => :string, :required => true
-  
-  # Backup syslog server address to connect to
-  config :backuphost, :validate => :string, :required => false
-  
+
   # syslog server port to connect to
   config :port, :validate => :number, :required => true
   
-  # Backup syslog server port to connect to
-  config :backupport, :validate => :number, :required => false
+  # Backup syslog servers to connect to
+  config :backuphosts, :validate => :hash, :required => false 
   
   # when connection fails, retry interval in sec.
   config :reconnect_interval, :validate => :number, :default => 1
-  
-  # when connection fails, retry amount of times.
-  config :reconnect_count, :validate => :number, :default => 2
-  
+
   # syslog server protocol. you can choose between udp, tcp and ssl/tls over tcp
   config :protocol, :validate => ["tcp", "udp", "ssl-tcp"], :default => "udp"
 
@@ -160,7 +154,8 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
-	counter = 1
+    send = true
+    trysentcounter = 0
     message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
     # fallback to pri 13 (facility 1, severity 5)
@@ -182,41 +177,37 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
     end
 
-    begin
-	  if counter > reconnect_count
-		if (!@backuphost.nil?)
-			temphost = @backuphost
-			tempport = @backupport
-			@logger.warn("Could not send to Primrary: #{@host} will attempt sending to Backup: #{@backuphost}")
-			@client_socket ||= connect("Secondary")
-		else
-			return nil
-		end
-	  else
-	  temphost = @host
-	  tempport = @port
-	  @client_socket ||= connect("Primrary")
-      end
-	  
-	  @client_socket.write(syslog_msg + "\n")
-    rescue => e
-      # We don't expect udp connections to fail because they are stateless, but ...
-      # udp connections may fail/raise an exception if used with localhost/127.0.0.1
-      return if udp?
-
-      @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event, this was try #{counter},", :host => temphost, :port => tempport, :exception => e, :backtrace => e.backtrace, :event => event)
-      @client_socket.close rescue nil
-      @client_socket = nil
-	  
-	  if temphost == @backuphosthost
-		return nil
-	  end
-
-      sleep(@reconnect_interval)
-    
-	  counter += 1
-	  retry
+    temphosts={"#{@host}"=>"#{@port}"} 
+    if (!@backuphosts.nil?)
+    hosts=temphosts.merge(@backuphosts)
+    else
+    hosts=temphosts.clone
     end
+    begin
+      if (!hosts.nil?)
+        while send
+          hosts.each do |host,port|
+            begin
+                @client_socket ||= connect(host,Integer(port))
+                @client_socket.write(syslog_msg + "\n")
+                send = false
+                break
+  	  rescue => e
+            # We don't expect udp connections to fail because they are stateless, but ...
+            # udp connections may fail/raise an exception if used with localhost/127.0.0.1
+              if udp?
+                 send = false
+                 break
+              end
+              @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event", :host => host, :port => port, :exception => e, :backtrace => e.backtrace, :event => event)
+              @client_socket.close rescue nil
+              @client_socket = nil
+            end		
+            sleep(@reconnect_interval)
+          end
+        end 
+      end
+    end   
   end
 
   private
@@ -229,22 +220,14 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     @protocol == "ssl-tcp"
   end
 
-  def connect(type)
+  def connect(chost,cport)
     socket = nil
     if udp?
       socket = UDPSocket.new
-      if type == "Primrary"
-		socket.connect(@host, @port)
-	  elsif type == "Secondary"
-		socket.connect(@backuphost, @backupport)
-	  end
-	else
-	  if type == "Primrary"
-		socket = TCPSocket.new(@host, @port)
-      elsif type == "Secondary"
-		socket = TCPSocket.new(@backuphost, @backupport)
-	  end
-	  if ssl?
+      socket.connect(chost,cport)
+    else
+      socket = TCPSocket.new(chost,cport)
+      if ssl?
         socket = OpenSSL::SSL::SSLSocket.new(socket, @ssl_context)
         begin
           socket.connect
