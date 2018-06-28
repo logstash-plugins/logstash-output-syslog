@@ -122,6 +122,9 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # to help you build a new value from other parts of the event.
   config :msgid, :validate => :string, :default => "-"
 
+  # structured data for syslog message (rfc5424 only)
+  config :structured_data, :validate => :string, :default => "-"
+
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
@@ -151,6 +154,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
+    structured_data = event.sprintf(@structured_data)
 
     message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
@@ -170,7 +174,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
+      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} #{structured_data} #{message}"
     end
 
     begin
