@@ -122,8 +122,14 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # to help you build a new value from other parts of the event.
   config :msgid, :validate => :string, :default => "-"
 
-  # structured data for syslog message (rfc5424 only)
+  # structured data for syslog message for rfc 5424
+  # expects a fully formatted structured data string including brackets,
+  # element IDs, and key-value pairs
   config :structured_data, :validate => :string, :default => "-"
+
+  # use frame header (message length) for rfc 5425
+  # this is required for rsyslog and syslog-ng to receive TCP syslog in TLS
+  config :frame_header, :validate => :boolean, :default => false
 
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
@@ -175,6 +181,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
       syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} #{structured_data} #{message}"
+      if @frame_header
+        msg_len = syslog_msg.length.to_s
+        syslog_msg = "#{msg_len} #{syslog_msg}"
+      end
     end
 
     begin
