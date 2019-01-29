@@ -125,6 +125,9 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
+  # show priority field if set to true
+  config :show_priority, :validate => :boolean, :default => true
+
   def register
     @client_socket = nil
 
@@ -154,28 +157,38 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
-    # fallback to pri 13 (facility 1, severity 5)
-    if @use_labels
-      facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) || 1)
-      severity_code = (SEVERITY_LABELS.index(event.sprintf(@severity)) || 5)
-      priority = (facility_code * 8) + severity_code
+    if @show_priority
+      # fallback to pri 13 (facility 1, severity 5)
+      if @use_labels
+        facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) || 1)
+        severity_code = (SEVERITY_LABELS.index(event.sprintf(@severity)) || 5)
+        priority = (facility_code * 8) + severity_code
+      else
+        priority = Integer(event.sprintf(@priority)) rescue 13
+        priority = 13 if (priority < 0 || priority > 191)
+      end
+
+      if @is_rfc3164
+        prefix = "<#{priority.to_s}>"
+      else
+        prefix = "<#{priority.to_s}>1 "
+      end
     else
-      priority = Integer(event.sprintf(@priority)) rescue 13
-      priority = 13 if (priority < 0 || priority > 191)
+      prefix = ""
     end
 
     if @is_rfc3164
       timestamp = event.sprintf("%{+MMM dd HH:mm:ss}")
-      syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
+      syslog_msg = "#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
     else
       msgid = event.sprintf(@msgid)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
-      syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
+      syslog_msg = "#{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
     end
 
     begin
       @client_socket ||= connect
-      @client_socket.write(syslog_msg + "\n")
+      @client_socket.write(prefix + syslog_msg + "\n")
     rescue => e
       # We don't expect udp connections to fail because they are stateless, but ...
       # udp connections may fail/raise an exception if used with localhost/127.0.0.1
