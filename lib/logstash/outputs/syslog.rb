@@ -126,7 +126,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
   # show priority field if set to true
-  config :show_priority, :validate => :boolean, :default => true
+  config :use_priority, :validate => :boolean, :default => true
 
   def register
     @client_socket = nil
@@ -157,7 +157,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
-    if @show_priority
+    if @use_priority
       # fallback to pri 13 (facility 1, severity 5)
       if @use_labels
         facility_code = (FACILITY_LABELS.index(event.sprintf(@facility)) || 1)

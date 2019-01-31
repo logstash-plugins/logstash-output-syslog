@@ -141,7 +141,7 @@ describe LogStash::Outputs::Syslog do
   end
 
   context "hide priority" do
-    let(:options) { {"host" => "foo", "port" => "123", "message" => "%{message}\n", "show_priority" => false } }
+    let(:options) { {"host" => "foo", "port" => "123", "message" => "%{message}\n", "use_priority" => false } }
     let(:output) { /^#{RFC3164_DATE_TIME_REGEX} baz LOGSTASH\[-\]: bar\n/m }
 
     it_behaves_like "syslog output"
