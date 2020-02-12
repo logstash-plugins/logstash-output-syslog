@@ -1,3 +1,6 @@
+## 3.0.6
+  - Fix codec indentity checking to bypass logstash issue [#11434](https://github.com/elastic/logstash/issues/11434)
+
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
 
