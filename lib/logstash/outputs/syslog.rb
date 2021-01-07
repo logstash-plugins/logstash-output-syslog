@@ -59,9 +59,24 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # syslog server port to connect to
   config :port, :validate => :number, :required => true
-
+  
+  # Backup syslog servers to connect to
+  config :backuphosts, :validate => :array, :required => false 
+  
   # when connection fails, retry interval in sec.
   config :reconnect_interval, :validate => :number, :default => 1
+  
+  # Resend messages that fail to next available backup host,if true distribute and loadbalance will be set to false.
+  config :backup, :validate => :boolean, :default => false
+
+  # Load Balance all configured Hosts(host and backuphosts),if true backup and distribute will be set to false.
+  config :loadbalance, :validate => :boolean, :default => false
+  
+  # Duplicate messages to all configured Hosts(host and backuphosts),if true backup and loadbalance will be set to false.
+  config :distribute, :validate => :boolean, :default => false
+
+  # when connection fails, retry amount of times.
+  config :reconnect_count, :validate => :number, :default => 2
 
   # syslog server protocol. you can choose between udp, tcp and ssl/tls over tcp
   config :protocol, :validate => ["tcp", "udp", "ssl-tcp"], :default => "udp"
@@ -127,6 +142,8 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   def register
     @client_socket = nil
+    @host_idx = 0
+    @multiconnect_sockets=Hash.new()
 
     if ssl?
       @ssl_context = setup_ssl
@@ -138,8 +155,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       end
     end
     @codec.on_event(&method(:publish))
-
-    # use instance variable to avoid string comparison for each event
+   	#use instance variable to avoid string comparison for each event
     @is_rfc3164 = (@rfc == "rfc3164")
   end
 
@@ -151,7 +167,6 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     appname = event.sprintf(@appname)
     procid = event.sprintf(@procid)
     sourcehost = event.sprintf(@sourcehost)
-
     message = payload.to_s.rstrip.gsub(/[\r][\n]/, "\n").gsub(/[\n]/, '\n')
 
     # fallback to pri 13 (facility 1, severity 5)
@@ -172,24 +187,85 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
       syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} - #{message}"
     end
-
-    begin
-      @client_socket ||= connect
-      @client_socket.write(syslog_msg + "\n")
-    rescue => e
-      # We don't expect udp connections to fail because they are stateless, but ...
-      # udp connections may fail/raise an exception if used with localhost/127.0.0.1
-      return if udp?
-
-      @logger.warn("syslog " + @protocol + " output exception: closing, reconnecting and resending event", :host => @host, :port => @port, :exception => e, :backtrace => e.backtrace, :event => event)
-      @client_socket.close rescue nil
-      @client_socket = nil
-
-      sleep(@reconnect_interval)
-      retry
+    
+    @send=true
+    @msgsendfail=false
+    prihost="#{@host}:"+@port.to_s
+    temphosts=Array.new()
+    temphosts.push(prihost)
+    
+    if (@backup)
+      @loadbalance=false
+      @distribute=false
+    elsif (@loadbalance)    
+      @backup=false
+      @distribute=false
+    elsif (@distribute)
+      @backup=false
+      @loadbalance=false
     end
-  end
-
+      
+    if (!@backuphosts.nil?)
+      @hosts=temphosts|@backuphosts
+    else
+      @hosts=Array.new(temphosts)
+    end
+    
+    while @send 
+      @current_host, @current_port = @hosts[@host_idx].split(':')
+      begin
+        if (@msgsendfail && @backup) || (@loadbalance)
+          @host_idx = (@host_idx<@hosts.size-1) ? @host_idx + 1 : 0
+          if (@msgsendfail)
+            @logger.warn("syslog " + @protocol + "Resending Message to", :host => @current_host, :port => @current_port)
+          end
+          @multiconnect_sockets[@hosts[@host_idx]] ||= connect(@current_host,Integer(@current_port))	
+          @multiconnect_sockets[@hosts[@host_idx]].write(syslog_msg + "\n")
+          @send=false
+          @msgsendfail=false
+          if (@backup)
+            @host_idx = 0     
+            @multiconnect_sockets[@hosts[0]] = nil
+          end
+          break
+        elsif (@distribute)
+          @hosts.each do | host |
+            begin
+              @current_host, @current_port = host.split(':')
+              @multiconnect_sockets[host] ||= connect(@current_host,Integer(@current_port))
+              @multiconnect_sockets[host].write(syslog_msg + "\n")
+              @send=false
+              @msgsendfail=false
+            rescue => e
+              @logger.warn("syslog " + @protocol + " output exception: closing, could not send event to ", :host => @current_host, :port => @current_port, :exception => e, :backtrace => e.backtrace, :event => event)
+              @multiconnect_sockets[host].close rescue nil
+              @multiconnect_sockets[host] = nil
+              next
+            end  
+          end
+        else
+          @multiconnect_sockets[@hosts[@host_idx]] ||= connect(@current_host,Integer(@current_port))
+          @multiconnect_sockets[@hosts[@host_idx]].write(syslog_msg + "\n")
+          @send=false
+          @msgsendfail=false
+          break
+        end
+      rescue => e
+        # We don't expect udp connections to fail because they are stateless, but ...
+        # udp connections may fail/raise an exception if used with localhost/127.0.0.1
+        if udp?
+          @send = false
+          break
+        end
+        @logger.warn("syslog " + @protocol + " output exception: closing, could not send event to ", :host => @current_host, :port => @current_port, :exception => e, :backtrace => e.backtrace, :event => event)
+        @multiconnect_sockets[@hosts[@host_idx]].close rescue nil
+        @multiconnect_sockets[@hosts[@host_idx]] = nil
+        @msgsendfail=true
+	sleep(@reconnect_interval)
+      end
+    end
+  end 
+  
   private
 
   def udp?
@@ -200,13 +276,13 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     @protocol == "ssl-tcp"
   end
 
-  def connect
+  def connect(chost,cport)
     socket = nil
     if udp?
       socket = UDPSocket.new
-      socket.connect(@host, @port)
+      socket.connect(chost,cport)
     else
-      socket = TCPSocket.new(@host, @port)
+      socket = TCPSocket.new(chost,cport)
       if ssl?
         socket = OpenSSL::SSL::SSLSocket.new(socket, @ssl_context)
         begin
