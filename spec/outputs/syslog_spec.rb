@@ -46,6 +46,20 @@ describe LogStash::Outputs::Syslog do
     it_behaves_like "syslog output"
   end
 
+  context "rfc 5424 with structured data" do
+    let(:options) { {"rfc" => "rfc5424", "structured_data" => '[file@000.000 name="foo.log"]', "protocol" => "tcp", "host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency"} }
+    let(:output) { /^<0>1 #{RFC3339_DATE_TIME_REGEX} baz LOGSTASH - - \[file@000.000 name=\"foo.log\"\] bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "rfc 5425 and tcp (frame header)" do
+    let(:options) { {"rfc" => "rfc5424", "frame_header" => true, "protocol" => "tcp", "host" => "foo", "port" => "123", "facility" => "kernel", "severity" => "emergency"} }
+    let(:output) { /^\d+ <0>1 #{RFC3339_DATE_TIME_REGEX} baz LOGSTASH - - - bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
   context "calculate priority" do
     let(:options) { {"host" => "foo", "port" => "123", "facility" => "mail", "severity" => "critical"} }
     let(:output) { /^<18>#{RFC3164_DATE_TIME_REGEX} baz LOGSTASH\[-\]: bar\n/m }
