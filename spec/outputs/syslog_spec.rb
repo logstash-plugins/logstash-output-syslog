@@ -139,4 +139,28 @@ describe LogStash::Outputs::Syslog do
 
     it_behaves_like "syslog output"
   end
+
+  context "structured data is not supported for RFC3164" do
+    let(:options) { {"host" => "foo", "port" => "123", "rfc" => "rfc3164", "structured_data" => "[foo@12345]" } }
+
+    it "should raise exception" do
+      expect { subject.register }.to raise_error(LogStash::ConfigurationError)
+    end
+  end
+
+  context "send with both structured data and message" do
+    let(:options) { {"host" => "foo", "port" => "123", "rfc" => "rfc5424", "structured_data" => '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"][examplePriority@32473 class="high"]' } }
+    let(:output) { /^<13>1 #{RFC3339_DATE_TIME_REGEX} baz LOGSTASH - - \[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"\]\[examplePriority@32473 class="high"\] bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
+  context "set structured data elements from event" do
+    let(:event) { LogStash::Event.new({"message" => "bar", "host" => "baz", "pod" => "mypod" }) }
+    let(:options) { {"host" => "foo", "port" => "123", "rfc" => "rfc5424", "structured_data" => '[exampleSDID@32473 pod="%{pod}"]' } }
+    let(:output) { /^<13>1 #{RFC3339_DATE_TIME_REGEX} baz LOGSTASH - - \[exampleSDID@32473 pod="mypod"\] bar\n/m }
+
+    it_behaves_like "syslog output"
+  end
+
 end
