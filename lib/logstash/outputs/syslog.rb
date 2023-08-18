@@ -125,17 +125,17 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # syslog message format: you can choose between rfc3164 or rfc5424
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
+  default :codec, nil
+
   def register
     @client_socket = nil
 
     if ssl?
       @ssl_context = setup_ssl
     end
-    
-    if @codec.instance_of? LogStash::Codecs::Plain
-      if @codec.config["format"].nil?
-        @codec = LogStash::Codecs::Plain.new({"format" => @message})
-      end
+
+    if @codec.nil?
+      @codec = LogStash::Codecs::Plain.new({ "format" => @message })
     end
     @codec.on_event(&method(:publish))
 
