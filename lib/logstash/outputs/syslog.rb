@@ -132,7 +132,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       @ssl_context = setup_ssl
     end
     
-    if @codec.instance_of? LogStash::Codecs::Plain
+    if @codec.class.name == "LogStash::Codecs::Plain"
       if @codec.config["format"].nil?
         @codec = LogStash::Codecs::Plain.new({"format" => @message})
       end
