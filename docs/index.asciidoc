@@ -244,8 +244,8 @@ use priority field if set to false
 RFC5424 structured data is a string of one or more structured data elements, including brackets.
 The elements need to be formatted according to link:https://datatracker.ietf.org/doc/html/rfc5424#section-6.3[RFC5424 section 6.3], for example:
 
-[source,ruby]
-   `[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"][examplePriority@32473 class="high"]`
+["source",subs="attributes"]
+  `[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"][examplePriority@32473 class="high"]`
 
 The new value can include `%{foo}` strings to help you build a new value from other parts of the event.
 
