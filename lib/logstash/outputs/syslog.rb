@@ -126,7 +126,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
 
   # RFC5424 structured data.
-  config :structured_data, :validate => :string, :default => nil
+  config :structured_data, :validate => :string, :default => ""
 
   def register
     @client_socket = nil
@@ -145,7 +145,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     # use instance variable to avoid string comparison for each event
     @is_rfc3164 = (@rfc == "rfc3164")
 
-    if @is_rfc3164 && !@structured_data.nil?
+    if @is_rfc3164 && !@structured_data.empty?
       raise LogStash::ConfigurationError, "Structured data is not supported for RFC3164"
     end
 
@@ -177,7 +177,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       syslog_msg = "<#{priority.to_s}>#{timestamp} #{sourcehost} #{appname}[#{procid}]: #{message}"
     else
       msgid = event.sprintf(@msgid)
-      sd = @structured_data.nil? ? "-" : event.sprintf(@structured_data)
+      sd = @structured_data.empty? ? "-" : event.sprintf(@structured_data)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
       syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} #{sd} #{message}"
     end

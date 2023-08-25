@@ -239,7 +239,7 @@ use priority field if set to false
 ===== `structured_data`
 
   * Value type is <<string,string>>
-  * Default value is `nil`
+  * There is no default value for this setting.
 
 RFC5424 structured data is a string of one or more structured data elements, including brackets.
 The elements need to be formatted according to link:https://datatracker.ietf.org/doc/html/rfc5424#section-6.3[RFC5424 section 6.3], for example:
