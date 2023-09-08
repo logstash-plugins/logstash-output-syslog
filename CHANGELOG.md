@@ -1,3 +1,6 @@
+## 3.0.6
+  - Change codec instance comparison [#69](https://github.com/logstash-plugins/logstash-output-syslog/pull/69)
+
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
 
