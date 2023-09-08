@@ -5,6 +5,7 @@
   - Added support for certificate revocation check for the server certificate [#62](https://github.com/logstash-plugins/logstash-output-syslog/pull/62)
   - Added support for setting cipher suites for TLS connections [#75](https://github.com/logstash-plugins/logstash-output-syslog/pull/75)
   - Added support for setting TLS protocol versions [#77](https://github.com/logstash-plugins/logstash-output-syslog/pull/77)
+  - Added support for loading PKCS8 EC private keys [#61](https://github.com/logstash-plugins/logstash-output-syslog/pull/61)
 
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
