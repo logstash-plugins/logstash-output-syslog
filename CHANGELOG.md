@@ -1,5 +1,6 @@
 ## 3.0.6
   - Change codec instance comparison [#69](https://github.com/logstash-plugins/logstash-output-syslog/pull/69)
+  - Added support for RFC5424 structured data [#67](https://github.com/logstash-plugins/logstash-output-syslog/pull/67)
 
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
@@ -40,4 +41,3 @@
  - Plugins were updated to follow the new shutdown semantic, this mainly allows Logstash to instruct input plugins to terminate gracefully,
    instead of using Thread.raise on the plugins' threads. Ref: https://github.com/elastic/logstash/pull/3895
  - Dependency on logstash-core update to 2.0
-
