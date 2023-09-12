@@ -1,4 +1,4 @@
-## 3.0.6
+## Unreleased
   - Change codec instance comparison [#69](https://github.com/logstash-plugins/logstash-output-syslog/pull/69)
   - Added support for RFC5424 structured data [#67](https://github.com/logstash-plugins/logstash-output-syslog/pull/67)
   - The SNI (Server Name Indication) extension is now used when connecting to syslog server with TLS and `host` is set to FQDN (Fully Qualified Domain Name) [#66](https://github.com/logstash-plugins/logstash-output-syslog/pull/66)
