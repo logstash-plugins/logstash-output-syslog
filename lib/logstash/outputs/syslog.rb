@@ -54,6 +54,8 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     "debug",
   ]
 
+  CRL_END_TAG = "\n-----END X509 CRL-----\n"
+
   # syslog server address to connect to
   config :host, :validate => :string, :required => true
 
@@ -239,8 +241,6 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     end
     socket
   end
-
-  CRL_END_TAG = "\n-----END X509 CRL-----\n"
 
   def setup_ssl
     require "openssl"
