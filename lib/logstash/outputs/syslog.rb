@@ -54,6 +54,8 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     "debug",
   ]
 
+  CRL_END_TAG = "\n-----END X509 CRL-----\n"
+
   # syslog server address to connect to
   config :host, :validate => :string, :required => true
 
@@ -80,6 +82,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
   # SSL key passphrase
   config :ssl_key_passphrase, :validate => :password, :default => nil
+
+  # CRL file or bundle of CRLs
+  config :ssl_crl, :validate => :path
+
+  # Check CRL for only leaf certificate (false) or require CRL check for the complete chain (true)
+  config :ssl_crl_check_all, :validate => :boolean, :default => false
 
   # use label parsing for severity and facility levels
   # use priority field if set to false
@@ -247,6 +255,14 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
         cert_store.add_path(@ssl_cacert)
       else
         cert_store.add_file(@ssl_cacert)
+      end
+      if @ssl_crl
+        # copy the behavior of X509_load_crl_file() which supports loading bundles of CRLs.
+        File.read(@ssl_crl).split(CRL_END_TAG).each do |crl|
+          crl << CRL_END_TAG
+          cert_store.add_crl(OpenSSL::X509::CRL.new(crl))
+        end
+        cert_store.flags = @ssl_crl_check_all ? OpenSSL::X509::V_FLAG_CRL_CHECK|OpenSSL::X509::V_FLAG_CRL_CHECK_ALL : OpenSSL::X509::V_FLAG_CRL_CHECK
       end
       ssl_context.cert_store = cert_store
       ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
