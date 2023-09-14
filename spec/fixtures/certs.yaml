@@ -32,3 +32,6 @@ subject: cn=client
 issuer: cn=ca
 key_type: RSA
 ---
+subject: cn=client-ec
+issuer: cn=ca
+key_type: EC

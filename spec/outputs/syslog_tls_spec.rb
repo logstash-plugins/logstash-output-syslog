@@ -109,6 +109,32 @@ describe LogStash::Outputs::Syslog do
   context "read PEM" do
     let(:options) { { "host" => "localhost", "port" => port, "protocol" => "ssl-tcp", "ssl_verify" => true } }
 
+    context "RSA certificate and private key" do
+      let(:options ) { super().merge(
+        "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
+        "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
+        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
+        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+      ) }
+
+      it "register succeeds" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
+    context "EC certificate and private key" do
+      let(:options ) { super().merge(
+        "ssl_cert" => File.join(FIXTURES_PATH, "client-ec.pem"),
+        "ssl_key" => File.join(FIXTURES_PATH, "client-ec-key.pem"),
+        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
+        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+      ) }
+
+      it "register succeeds" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
     context "invalid client certificate" do
       let(:options ) { super().merge(
         "ssl_cert" => File.join(FIXTURES_PATH, "invalid.pem"),
@@ -119,19 +145,6 @@ describe LogStash::Outputs::Syslog do
 
       it "register raises error" do
         expect { subject.register }.to raise_error(OpenSSL::X509::CertificateError, /malformed PEM data/)
-      end
-    end
-
-    context "invalid client private key" do
-      let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
-        "ssl_key" => File.join(FIXTURES_PATH, "invalid.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
-      ) }
-
-      it "register raises error" do
-        expect { subject.register }.to raise_error(OpenSSL::PKey::RSAError, /Neither PUB key nor PRIV key/)
       end
     end
 

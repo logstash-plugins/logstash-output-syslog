@@ -3,6 +3,7 @@
   - Added support for RFC5424 structured data [#67](https://github.com/logstash-plugins/logstash-output-syslog/pull/67)
   - The SNI (Server Name Indication) extension is now used when connecting to syslog server with TLS and `host` is set to FQDN (Fully Qualified Domain Name) [#66](https://github.com/logstash-plugins/logstash-output-syslog/pull/66)
   - Add support for CRL to check for the server certificate is revocation status [#62](https://github.com/logstash-plugins/logstash-output-syslog/pull/62)
+  - Support loading of PKCS8 EC private keys [#61](https://github.com/logstash-plugins/logstash-output-syslog/pull/61)
 
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
