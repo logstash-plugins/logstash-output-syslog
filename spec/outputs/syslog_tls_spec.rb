@@ -71,24 +71,26 @@ describe LogStash::Outputs::Syslog do
       it_behaves_like "syslog output"
     end
 
-    context "ssl_verify == false, server with untrusted certificates" do
-      let(:options ) { super().merge("ssl_verify" => false) }
+    context "server with untrusted certificates" do
       let(:server_cert_file) { File.join(FIXTURES_PATH, "untrusted-server.pem") }
       let(:server_pkey_file) { File.join(FIXTURES_PATH, "untrusted-server-key.pem") }
 
-      it_behaves_like "syslog output"
-    end
+      context "ssl_verify disabled" do
+        let(:options ) { super().merge("ssl_verify" => false) }
 
-    context "ssl_verify == true, server with untrusted certificates" do
-      let(:options ) { super().merge("ssl_verify" => true) }
-      let(:server_cert_file) { File.join(FIXTURES_PATH, "untrusted-server.pem") }
-      let(:server_pkey_file) { File.join(FIXTURES_PATH, "untrusted-server-key.pem") }
-
-      it "syslog output refuses to connect" do
-        Thread.start { secure_server.accept rescue nil }
-        expect(subject.logger).to receive(:error).with(/SSL Error/i, hash_including(exception: OpenSSL::SSL::SSLError)).once.and_throw :TEST_DONE
-        expect { subject.receive event }.to throw_symbol(:TEST_DONE)
+        it_behaves_like "syslog output"
       end
+
+      context "ssl_verify enabled" do
+        let(:options ) { super().merge("ssl_verify" => true) }
+
+        it "should refuse to connect" do
+          Thread.start { secure_server.accept rescue nil }
+          expect(subject.logger).to receive(:error).with(/SSL Error/i, hash_including(exception: OpenSSL::SSL::SSLError)).once.and_throw :TEST_DONE
+          expect { subject.receive event }.to throw_symbol(:TEST_DONE)
+        end
+      end
+
     end
 
     context "server with revoked certificates" do
@@ -132,21 +134,6 @@ describe LogStash::Outputs::Syslog do
         expect { subject.register }.to raise_error(OpenSSL::PKey::RSAError, /Neither PUB key nor PRIV key/)
       end
     end
-
-    # TODO: there is no failure when reading malformed CA certificate
-    #
-    # context "invalid CA certificate" do
-    #   let(:options ) { super().merge(
-    #     "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
-    #     "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
-    #     "ssl_cacert" => File.join(FIXTURES_PATH, "invalid.pem"),
-    #     "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
-    #   ) }
-
-    #   it "register raises error" do
-    #     expect { subject.register }.to raise_error(OpenSSL::PKey::RSAError, /malformed PEM data/)
-    #   end
-    # end
 
     context "invalid CRL" do
       let(:options ) { super().merge(
