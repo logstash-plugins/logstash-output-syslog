@@ -131,7 +131,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :msgid, :validate => :string, :default => "-"
 
   # syslog message format: you can choose between rfc3164 or rfc5424
-  config :rfc, :validate => ["rfc3164", "rfc5424"], :default => "rfc3164"
+  config :rfc, :validate => ["rfc3164", "rfc5424", "rfc6587"], :default => "rfc3164"
 
   # RFC5424 structured data.
   config :structured_data, :validate => :string, :default => ""
@@ -152,7 +152,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     # use instance variable to avoid string comparison for each event
     @is_rfc3164 = (@rfc == "rfc3164")
+    @is_rfc6587 = (@rfc == "rfc6587")
 
+    @delimitter = "\n"
+    if @is_rfc6587
+      @delimitter = ""
+    end
     if @is_rfc3164 && !@structured_data.empty?
       raise LogStash::ConfigurationError, "Structured data is not supported for RFC3164"
     end
@@ -188,11 +193,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       sd = @structured_data.empty? ? "-" : event.sprintf(@structured_data)
       timestamp = event.sprintf("%{+YYYY-MM-dd'T'HH:mm:ss.SSSZZ}")
       syslog_msg = "<#{priority.to_s}>1 #{timestamp} #{sourcehost} #{appname} #{procid} #{msgid} #{sd} #{message}"
+      syslog_msg = "#{syslog_msg.length} #{syslog_msg}" if @is_rfc6587
     end
 
     begin
       @client_socket ||= connect
-      @client_socket.write(syslog_msg + "\n")
+      @client_socket.write(syslog_msg + @delimitter)
     rescue => e
       # We don't expect udp connections to fail because they are stateless, but ...
       # udp connections may fail/raise an exception if used with localhost/127.0.0.1
