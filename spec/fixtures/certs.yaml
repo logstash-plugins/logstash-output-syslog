@@ -31,4 +31,6 @@ sans:
 subject: cn=client
 issuer: cn=ca
 key_type: RSA
+not_before: 1970-01-01T00:00:00Z
+not_after: 2100-01-01T00:00:00Z
 ---

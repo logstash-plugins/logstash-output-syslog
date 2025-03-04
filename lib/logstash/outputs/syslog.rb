@@ -89,6 +89,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # Check CRL for only leaf certificate (false) or require CRL check for the complete chain (true)
   config :ssl_crl_check_all, :validate => :boolean, :default => false
 
+  # The list of cipher suites to use, listed by priorities.
+  # Supported cipher suites vary depending on which version of Java is used.
+  config :ssl_cipher_suites, :validate => :string, :list => true
+
   # use label parsing for severity and facility levels
   # use priority field if set to false
   config :use_labels, :validate => :boolean, :default => true
@@ -247,6 +251,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     ssl_context = OpenSSL::SSL::SSLContext.new
     ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
     ssl_context.key = OpenSSL::PKey::RSA.new(File.read(@ssl_key),@ssl_key_passphrase)
+    ssl_context.ciphers = @ssl_cipher_suites if @ssl_cipher_suites&.any?
     if @ssl_verify
       cert_store = OpenSSL::X509::Store.new
       # Load the system default certificate path to the store
