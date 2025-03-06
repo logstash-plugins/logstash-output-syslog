@@ -4,6 +4,7 @@
   - The SNI (Server Name Indication) extension is now used when connecting to syslog server with TLS and `host` is set to FQDN (Fully Qualified Domain Name) [#66](https://github.com/logstash-plugins/logstash-output-syslog/pull/66)
   - Added support for certificate revocation check for the server certificate [#62](https://github.com/logstash-plugins/logstash-output-syslog/pull/62)
   - Added support for setting cipher suites for TLS connections [#75](https://github.com/logstash-plugins/logstash-output-syslog/pull/75)
+  - Added support for setting TLS protocol version [#77](https://github.com/logstash-plugins/logstash-output-syslog/pull/77)
 
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.

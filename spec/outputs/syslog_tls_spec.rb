@@ -34,6 +34,7 @@ describe LogStash::Outputs::Syslog do
       Thread.start { sleep 0.25; subject.receive event }
       socket = secure_server.accept
       expect(socket.cipher).to eq(chosen_cipher) if defined?(chosen_cipher)
+      expect(socket.ssl_version).to eq(chosen_tls_version) if defined?(chosen_tls_version)
       read = socket.sysread(100)
       expect(read.size).to be > 0
       expect(read).to match(output)
@@ -71,6 +72,27 @@ describe LogStash::Outputs::Syslog do
 
       context "with SSL verification" do
         let(:options ) { super().merge("ssl_verify" => true) }
+
+        it_behaves_like "syslog output"
+      end
+
+      context "with TLSv1.2" do
+        let(:options ) { super().merge("ssl_supported_protocols" => ["TLSv1.2"]) }
+        let(:chosen_tls_version) { "TLSv1.2" }
+
+        it_behaves_like "syslog output"
+      end
+
+      context "with TLSv1.3" do
+        let(:options ) { super().merge("ssl_supported_protocols" => ["TLSv1.3"]) }
+        let(:chosen_tls_version) { "TLSv1.3" }
+
+        it_behaves_like "syslog output"
+      end
+
+      context "with TLSv1.2 and TLSv1.3" do
+        let(:options ) { super().merge("ssl_supported_protocols" => ["TLSv1.2", "TLSv1.3"]) }
+        let(:chosen_tls_version) { "TLSv1.3" }
 
         it_behaves_like "syslog output"
       end

@@ -93,6 +93,9 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   # Supported cipher suites vary depending on which version of Java is used.
   config :ssl_cipher_suites, :validate => :string, :list => true
 
+  # NOTE: the default setting [] uses Java SSL engine defaults.
+  config :ssl_supported_protocols, :validate => ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'], :default => [], :list => true
+
   # use label parsing for severity and facility levels
   # use priority field if set to false
   config :use_labels, :validate => :boolean, :default => true
@@ -278,6 +281,15 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       ssl_context.cert_store = cert_store
       ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
     end
+
+    ssl_context.min_version = :TLS1_1 # not strictly required - JVM should have disabled TLSv1
+    if ssl_supported_protocols.any?
+      disabled_protocols = ['TLSv1.1', 'TLSv1.2', 'TLSv1.3'] - ssl_supported_protocols
+      # mapping 'TLSv1.2' -> OpenSSL::SSL::OP_NO_TLSv1_2
+      disabled_protocols.map! { |v| OpenSSL::SSL.const_get "OP_NO_#{v.sub('.', '_')}" }
+      ssl_context.options = disabled_protocols.reduce(ssl_context.options, :|)
+    end
+
     ssl_context
   end
 end
