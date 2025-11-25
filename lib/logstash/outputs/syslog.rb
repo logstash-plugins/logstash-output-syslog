@@ -19,20 +19,22 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config_name "syslog"
 
   FACILITY_LABELS = [
-    "kernel",
-    "user-level",
+    "kern",
+    "user",
     "mail",
     "daemon",
-    "security/authorization",
-    "syslogd",
-    "line printer",
-    "network news",
+    "auth",
+    "syslog",
+    "lpr",
+    "news",
     "uucp",
-    "clock",
+    "cron",
+    "authpriv",
     "ftp",
     "ntp",
-    "log audit",
-    "log alert",
+    "security",
+    "console",
+    "solaris-cron",
     "local0",
     "local1",
     "local2",
@@ -40,7 +42,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     "local4",
     "local5",
     "local6",
-    "local7",
+    "local7"
   ]
 
   SEVERITY_LABELS = [
