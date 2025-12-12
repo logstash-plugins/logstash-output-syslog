@@ -33,6 +33,7 @@ describe LogStash::Outputs::Syslog do
     it "should write expected format" do
       Thread.start { sleep 0.25; subject.receive event }
       socket = secure_server.accept
+      expect(socket.cipher).to eq(chosen_cipher) if defined?(chosen_cipher)
       read = socket.sysread(100)
       expect(read.size).to be > 0
       expect(read).to match(output)
@@ -54,6 +55,7 @@ describe LogStash::Outputs::Syslog do
       ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(server_cert_file))
       ssl_context.key = OpenSSL::PKey::read(File.read(server_pkey_file), nil)
       ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      ssl_context.ciphers = "ALL"
       ssl_context.cert_store = OpenSSL::X509::Store.new
       ssl_context.cert_store.add_cert(OpenSSL::X509::Certificate.new(File.read(File.join(FIXTURES_PATH, "ca.pem"))))
       OpenSSL::SSL::SSLServer.new(server, ssl_context)
@@ -64,11 +66,22 @@ describe LogStash::Outputs::Syslog do
     end
 
     context "server with valid certificates" do
-      let(:options ) { super().merge("ssl_verify" => true) }
       let(:server_cert_file) { File.join(FIXTURES_PATH, "valid-server.pem") }
       let(:server_pkey_file) { File.join(FIXTURES_PATH, "valid-server-key.pem") }
 
-      it_behaves_like "syslog output"
+      context "with SSL verification" do
+        let(:options ) { super().merge("ssl_verify" => true) }
+
+        it_behaves_like "syslog output"
+      end
+
+      context "with cipher suites" do
+        let(:options ) { super().merge("ssl_cipher_suites" => ["TLS_CHACHA20_POLY1305_SHA256"]) }
+        let(:chosen_cipher) { "TLS_CHACHA20_POLY1305_SHA256" }
+
+        it_behaves_like "syslog output"
+      end
+
     end
 
     context "server with untrusted certificates" do

@@ -163,4 +163,14 @@ describe LogStash::Outputs::Syslog do
     it_behaves_like "syslog output"
   end
 
+  context "tcp protocol with unused ssl settings" do
+    let(:options) { {"protocol" => "tcp", "host" => "foo", "port" => "123", "ssl_cacert" => File.join(File.expand_path("../fixtures", File.dirname(__FILE__)), "ca.pem") } }
+
+    it "logs a warning about unused ssl settings" do
+      plugin = LogStash::Plugin.lookup("output", "syslog").new(options)
+      expect(plugin.logger).to receive(:warn).with(a_string_matching(/Configured SSL settings are not used/)).once
+      plugin.register
+    end
+  end
+
 end
