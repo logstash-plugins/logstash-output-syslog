@@ -145,6 +145,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     if ssl?
       @ssl_context = setup_ssl
+    else
+      # Check if any SSL settings were provided when not using SSL.
+      ssl_config_provided = original_params.select { |k| k.start_with?("ssl_") }
+      if ssl_config_provided.any?
+        @logger.warn("Configured SSL settings are not used when `protocol` is set to '#{@protocol}': #{ssl_config_provided.keys}")
+      end
     end
 
     if @codec.class.name == "LogStash::Codecs::Plain"

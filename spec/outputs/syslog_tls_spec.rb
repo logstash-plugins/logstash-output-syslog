@@ -69,7 +69,7 @@ describe LogStash::Outputs::Syslog do
       let(:server_cert_file) { File.join(FIXTURES_PATH, "valid-server.pem") }
       let(:server_pkey_file) { File.join(FIXTURES_PATH, "valid-server-key.pem") }
 
-      context "ssl_verify enabled" do
+      context "with SSL verification" do
         let(:options ) { super().merge("ssl_verify" => true) }
 
         it_behaves_like "syslog output"
