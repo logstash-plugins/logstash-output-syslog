@@ -34,3 +34,8 @@ key_type: RSA
 not_before: 1970-01-01T00:00:00Z
 not_after: 2100-01-01T00:00:00Z
 ---
+subject: cn=client-ec
+issuer: cn=ca
+key_type: EC
+not_before: 1970-01-01T00:00:00Z
+not_after: 2100-01-01T00:00:00Z
