@@ -1,4 +1,4 @@
-## Unreleased
+## 3.1.0
   - Change codec instance comparison [#69](https://github.com/logstash-plugins/logstash-output-syslog/pull/69)
   - Added support for RFC5424 structured data [#67](https://github.com/logstash-plugins/logstash-output-syslog/pull/67)
   - The SNI (Server Name Indication) extension is now used when connecting to syslog server with TLS and `host` is set to FQDN (Fully Qualified Domain Name) [#66](https://github.com/logstash-plugins/logstash-output-syslog/pull/66)
@@ -6,6 +6,7 @@
   - Added support for setting cipher suites for TLS connections [#75](https://github.com/logstash-plugins/logstash-output-syslog/pull/75)
   - Added support for setting TLS protocol versions [#77](https://github.com/logstash-plugins/logstash-output-syslog/pull/77)
   - Added support for loading PKCS8 EC private keys [#61](https://github.com/logstash-plugins/logstash-output-syslog/pull/61)
+  - Deprecated `ssl_cert` and `ssl_cacert` settings in favor of `ssl_certificate` and `ssl_certificate_authorities` [#82](https://github.com/logstash-plugins/logstash-output-syslog/pull/82)
 
 ## 3.0.5
   - Docs: Set the default_codec doc attribute.
