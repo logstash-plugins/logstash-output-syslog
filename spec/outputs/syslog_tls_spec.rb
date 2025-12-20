@@ -233,4 +233,44 @@ describe LogStash::Outputs::Syslog do
     end
 
   end
+
+  context "CRL options validation" do
+    let(:options) { { "host" => "localhost", "port" => port, "protocol" => "ssl-tcp", "ssl_verify" => true,
+      "ssl_certificate" => File.join(FIXTURES_PATH, "client.pem"),
+      "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
+      "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+      "ssl_crl_path" => File.join(FIXTURES_PATH, "ca-crl.pem") } }
+
+    context "when ssl_crl_check contains only leaf" do
+      let(:options) { super().merge("ssl_crl_check" => ["leaf"]) }
+
+      it "should register without errors" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
+    context "when ssl_crl_check contains only chain" do
+      let(:options) { super().merge("ssl_crl_check" => ["chain"]) }
+
+      it "should register without errors" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
+    context "when ssl_crl_check contains both leaf and chain" do
+      let(:options) { super().merge("ssl_crl_check" => ["leaf", "chain"]) }
+
+      it "should raise ConfigurationError for mutually exclusive options" do
+        expect { subject.register }.to raise_error(LogStash::ConfigurationError, /ssl_crl_check can only contain one of 'leaf' or 'chain'/)
+      end
+    end
+
+    context "when ssl_crl_check is set without ssl_crl_path" do
+      let(:options) { super().reject { |k| k == "ssl_crl_path" }.merge("ssl_crl_check" => ["leaf"]) }
+
+      it "should raise ConfigurationError for missing ssl_crl_path" do
+        expect { subject.register }.to raise_error(LogStash::ConfigurationError, /ssl_crl_check is set but ssl_crl_path is not set/)
+      end
+    end
+  end
 end

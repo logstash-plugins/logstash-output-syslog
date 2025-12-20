@@ -96,9 +96,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :ssl_crl_path, :validate => :path
 
   # CRL check flags.
-  # When empty (default), only the certificate at the end of the certificate chain will be subject to validation by CRL.
-  # Set to 'chain' to validate the complete certificate chain against CRLs.
-  config :ssl_crl_check, :validate => ["chain"], :list => true, :default => []
+  # When `leaf` (default), only the server certificate (first certificate of the certificate chain) will be subject to validation by CRL.
+  # Set to `chain` to validate the complete certificate chain against CRLs.
+  # For each certificate validated, a CRL from its issuing Certificate Authority must be present in the `ssl_crl_path`.
+  config :ssl_crl_check, :validate => ["leaf", "chain"], :list => true, :default => ["leaf"]
 
   # The list of cipher suites to use, listed by priorities.
   # Supported cipher suites vary depending on which version of Java is used.
@@ -165,16 +166,12 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       normalize.with_deprecated_alias(:ssl_cert)
     end
 
+    validate_options
+
     @client_socket = nil
 
     if ssl?
       @ssl_context = setup_ssl
-    else
-      # Check if any SSL settings were provided when not using SSL.
-      ssl_config_provided = original_params.select { |k| k.start_with?("ssl_") }
-      if ssl_config_provided.any?
-        @logger.warn("Configured SSL settings are not used when `protocol` is set to '#{@protocol}': #{ssl_config_provided.keys}")
-      end
     end
 
     if @codec.class.name == "LogStash::Codecs::Plain"
@@ -316,5 +313,25 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     end
 
     ssl_context
+  end
+
+  def validate_options
+    if ssl?
+      # Check if ssl_crl_check was provided while ssl_crl_path is not set.
+      if original_params.key?("ssl_crl_check") && @ssl_crl_path.nil?
+        raise LogStash::ConfigurationError, "ssl_crl_check is set but ssl_crl_path is not set"
+      end
+
+      # "leaf" and "chain" are mutually exclusive.
+      if @ssl_crl_check.include?("leaf") && @ssl_crl_check.include?("chain")
+        raise LogStash::ConfigurationError, "ssl_crl_check can only contain one of 'leaf' or 'chain'"
+      end
+    else
+      # Check if any SSL settings were provided when not using SSL.
+      ssl_config_provided = original_params.select { |k| k.start_with?("ssl_") }
+      if ssl_config_provided.any?
+        @logger.warn("Configured SSL settings are not used when `protocol` is set to '#{@protocol}': #{ssl_config_provided.keys}")
+      end
+    end
   end
 end

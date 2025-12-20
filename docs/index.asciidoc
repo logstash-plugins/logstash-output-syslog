@@ -243,11 +243,11 @@ File may contain one or more PEM encoded CRLs.
 ===== `ssl_crl_check`
 
   * Value type is <<array,array>>
-  * There is no default value for this setting
+  * Default value is `['leaf']`
 
-When empty (default), only the certificate at the end of the certificate chain will be subject to validation by CRL.
-Set to `'chain'` to validate the complete certificate chain against CRLs.
-CRLs must be available from all Certificate Authorities that are to be validated.
+When set to `leaf` (default), only the server certificate is validated against CRLs.
+When set to `chain`, the entire certificate chain, including subordinate Certificate Authorities, is validated against CRLs.
+For each certificate validated, a CRL from its issuing Certificate Authority must be present in the <<plugins-{type}s-{plugin}-ssl_crl_path>>.
 
 [id="plugins-{type}s-{plugin}-ssl_cipher_suites"]
 ===== `ssl_cipher_suites`
