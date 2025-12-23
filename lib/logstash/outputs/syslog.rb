@@ -3,6 +3,7 @@ require "logstash/outputs/base"
 require "logstash/namespace"
 require "date"
 require "logstash/codecs/plain"
+require "logstash/plugin_mixins/normalize_config_support"
 
 
 # Send events to a syslog server.
@@ -16,6 +17,8 @@ require "logstash/codecs/plain"
 # reason want to change the emitted message, modify the `message`
 # configuration option.
 class LogStash::Outputs::Syslog < LogStash::Outputs::Base
+  include LogStash::PluginMixins::NormalizeConfigSupport
+
   config_name "syslog"
 
   FACILITY_LABELS = [
@@ -72,10 +75,16 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :ssl_verify, :validate => :boolean, :default => false
 
   # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
-  config :ssl_cacert, :validate => :path
+  config :ssl_cacert, :validate => :path, :deprecated => "Use 'ssl_certificate_authorities' instead."
+
+  # The SSL CA certificate, chainfile or CA path. The system CA path is automatically included.
+  config :ssl_certificate_authorities, :validate => :path, :list => true
 
   # SSL certificate path
-  config :ssl_cert, :validate => :path
+  config :ssl_cert, :validate => :path, :deprecated => "Use 'ssl_certificate' instead."
+
+  # SSL certificate path
+  config :ssl_certificate, :validate => :path
 
   # SSL key path
   config :ssl_key, :validate => :path
@@ -84,10 +93,13 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :ssl_key_passphrase, :validate => :password, :default => nil
 
   # CRL file or bundle of CRLs
-  config :ssl_crl, :validate => :path
+  config :ssl_crl_path, :validate => :path
 
-  # Check CRL for only leaf certificate (false) or require CRL check for the complete chain (true)
-  config :ssl_crl_check_all, :validate => :boolean, :default => false
+  # CRL check flags.
+  # When `leaf` (default), only the server certificate (first certificate of the certificate chain) will be subject to validation by CRL.
+  # Set to `chain` to validate the complete certificate chain against CRLs.
+  # For each certificate validated, a CRL from its issuing Certificate Authority must be present in the `ssl_crl_path`.
+  config :ssl_crl_check, :validate => ["leaf", "chain"], :list => true, :default => ["leaf"]
 
   # The list of cipher suites to use, listed by priorities.
   # Supported cipher suites vary depending on which version of Java is used.
@@ -144,16 +156,22 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   config :structured_data, :validate => :string, :default => ""
 
   def register
+    @ssl_certificate_authorities = normalize_config(:ssl_certificate_authorities) do |normalize|
+      normalize.with_deprecated_mapping(:ssl_cacert) do |ssl_cacert|
+        [ssl_cacert]
+      end
+    end
+
+    @ssl_certificate = normalize_config(:ssl_certificate) do |normalize|
+      normalize.with_deprecated_alias(:ssl_cert)
+    end
+
+    validate_options
+
     @client_socket = nil
 
     if ssl?
       @ssl_context = setup_ssl
-    else
-      # Check if any SSL settings were provided when not using SSL.
-      ssl_config_provided = original_params.select { |k| k.start_with?("ssl_") }
-      if ssl_config_provided.any?
-        @logger.warn("Configured SSL settings are not used when `protocol` is set to '#{@protocol}': #{ssl_config_provided.keys}")
-      end
     end
 
     if @codec.class.name == "LogStash::Codecs::Plain"
@@ -258,25 +276,29 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
   def setup_ssl
     require "openssl"
     ssl_context = OpenSSL::SSL::SSLContext.new
-    ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_cert))
+    ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(@ssl_certificate))
     ssl_context.key = OpenSSL::PKey::read(File.read(@ssl_key),@ssl_key_passphrase)
     ssl_context.ciphers = @ssl_cipher_suites if @ssl_cipher_suites&.any?
     if @ssl_verify
       cert_store = OpenSSL::X509::Store.new
       # Load the system default certificate path to the store
       cert_store.set_default_paths
-      if File.directory?(@ssl_cacert)
-        cert_store.add_path(@ssl_cacert)
-      else
-        cert_store.add_file(@ssl_cacert)
+      if @ssl_certificate_authorities
+        @ssl_certificate_authorities.each do |ca_path|
+          if File.directory?(ca_path)
+            cert_store.add_path(ca_path)
+          else
+            cert_store.add_file(ca_path)
+          end
+        end
       end
-      if @ssl_crl
+      if @ssl_crl_path
         # copy the behavior of X509_load_crl_file() which supports loading bundles of CRLs.
-        File.read(@ssl_crl).split(CRL_END_TAG).each do |crl|
+        File.read(@ssl_crl_path).split(CRL_END_TAG).each do |crl|
           crl << CRL_END_TAG
           cert_store.add_crl(OpenSSL::X509::CRL.new(crl))
         end
-        cert_store.flags = @ssl_crl_check_all ? OpenSSL::X509::V_FLAG_CRL_CHECK|OpenSSL::X509::V_FLAG_CRL_CHECK_ALL : OpenSSL::X509::V_FLAG_CRL_CHECK
+        cert_store.flags = @ssl_crl_check.include?("chain") ? OpenSSL::X509::V_FLAG_CRL_CHECK|OpenSSL::X509::V_FLAG_CRL_CHECK_ALL : OpenSSL::X509::V_FLAG_CRL_CHECK
       end
       ssl_context.cert_store = cert_store
       ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER|OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
@@ -291,5 +313,25 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
     end
 
     ssl_context
+  end
+
+  def validate_options
+    if ssl?
+      # Check if ssl_crl_check was provided while ssl_crl_path is not set.
+      if original_params.key?("ssl_crl_check") && @ssl_crl_path.nil?
+        raise LogStash::ConfigurationError, "ssl_crl_check is set but ssl_crl_path is not set"
+      end
+
+      # "leaf" and "chain" are mutually exclusive.
+      if @ssl_crl_check.include?("leaf") && @ssl_crl_check.include?("chain")
+        raise LogStash::ConfigurationError, "ssl_crl_check can only contain one of 'leaf' or 'chain'"
+      end
+    else
+      # Check if any SSL settings were provided when not using SSL.
+      ssl_config_provided = original_params.select { |k| k.start_with?("ssl_") }
+      if ssl_config_provided.any?
+        @logger.warn("Configured SSL settings are not used when `protocol` is set to '#{@protocol}': #{ssl_config_provided.keys}")
+      end
+    end
   end
 end

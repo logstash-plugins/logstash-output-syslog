@@ -104,6 +104,17 @@ describe LogStash::Outputs::Syslog do
         it_behaves_like "syslog output"
       end
 
+      context "with deprecated ssl_cert and ssl_cacert" do
+        # Override parent options to test only deprecated options.
+        let(:options) { { "host" => "localhost", "port" => port, "protocol" => "ssl-tcp", "ssl_verify" => true,
+          "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
+          "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
+          "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem")
+        } }
+
+        it_behaves_like "syslog output"
+      end
+
     end
 
     context "server with untrusted certificates" do
@@ -129,14 +140,26 @@ describe LogStash::Outputs::Syslog do
     end
 
     context "server with revoked certificates" do
-      let(:options ) { super().merge("ssl_verify" => true, "ssl_crl" => File.join(FIXTURES_PATH, "ca-crl.pem")) }
+      let(:options ) { super().merge("ssl_verify" => true, "ssl_crl_path" => File.join(FIXTURES_PATH, "ca-crl.pem")) }
       let(:server_cert_file) { File.join(FIXTURES_PATH, "revoked-server.pem") }
       let(:server_pkey_file) { File.join(FIXTURES_PATH, "revoked-server-key.pem") }
 
-      it "syslog output refuses to connect" do
-        Thread.start { secure_server.accept rescue nil }
-        expect(subject.logger).to receive(:error).with(/SSL Error/i, hash_including(exception: OpenSSL::SSL::SSLError)).once.and_throw :TEST_DONE
-        expect { subject.receive event }.to throw_symbol(:TEST_DONE)
+      shared_examples "refuses connection" do
+        it "syslog output refuses to connect" do
+          Thread.start { secure_server.accept rescue nil }
+          expect(subject.logger).to receive(:error).with(/SSL Error/i, hash_including(exception: OpenSSL::SSL::SSLError)).once.and_throw :TEST_DONE
+          expect { subject.receive event }.to throw_symbol(:TEST_DONE)
+        end
+      end
+
+      context "with default ssl_crl_check" do
+        it_behaves_like "refuses connection"
+      end
+
+      context "with chain ssl_crl_check" do
+        let(:options ) { super().merge("ssl_crl_check" => ["chain"]) }
+
+        it_behaves_like "refuses connection"
       end
     end
   end
@@ -146,10 +169,10 @@ describe LogStash::Outputs::Syslog do
 
     context "RSA certificate and private key" do
       let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
+        "ssl_certificate" => File.join(FIXTURES_PATH, "client.pem"),
         "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+        "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+        "ssl_crl_path"  => File.join(FIXTURES_PATH, "ca-crl.pem")
       ) }
 
       it "register succeeds" do
@@ -159,10 +182,10 @@ describe LogStash::Outputs::Syslog do
 
     context "EC certificate and private key" do
       let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "client-ec.pem"),
+        "ssl_certificate" => File.join(FIXTURES_PATH, "client-ec.pem"),
         "ssl_key" => File.join(FIXTURES_PATH, "client-ec-key.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+        "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+        "ssl_crl_path"  => File.join(FIXTURES_PATH, "ca-crl.pem")
       ) }
 
       it "register succeeds" do
@@ -172,10 +195,10 @@ describe LogStash::Outputs::Syslog do
 
     context "invalid client certificate" do
       let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "invalid.pem"),
+        "ssl_certificate" => File.join(FIXTURES_PATH, "invalid.pem"),
         "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+        "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+        "ssl_crl_path"  => File.join(FIXTURES_PATH, "ca-crl.pem")
       ) }
 
       it "register raises error" do
@@ -185,10 +208,10 @@ describe LogStash::Outputs::Syslog do
 
     context "invalid client private key" do
       let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
+        "ssl_certificate" => File.join(FIXTURES_PATH, "client.pem"),
         "ssl_key" => File.join(FIXTURES_PATH, "invalid.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "ca-crl.pem")
+        "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+        "ssl_crl_path"  => File.join(FIXTURES_PATH, "ca-crl.pem")
       ) }
 
       it "register raises error" do
@@ -198,10 +221,10 @@ describe LogStash::Outputs::Syslog do
 
     context "invalid CRL" do
       let(:options ) { super().merge(
-        "ssl_cert" => File.join(FIXTURES_PATH, "client.pem"),
+        "ssl_certificate" => File.join(FIXTURES_PATH, "client.pem"),
         "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
-        "ssl_cacert" => File.join(FIXTURES_PATH, "ca.pem"),
-        "ssl_crl"  => File.join(FIXTURES_PATH, "invalid.pem")
+        "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+        "ssl_crl_path"  => File.join(FIXTURES_PATH, "invalid.pem")
       ) }
 
       it "register raises error" do
@@ -209,5 +232,45 @@ describe LogStash::Outputs::Syslog do
       end
     end
 
+  end
+
+  context "CRL options validation" do
+    let(:options) { { "host" => "localhost", "port" => port, "protocol" => "ssl-tcp", "ssl_verify" => true,
+      "ssl_certificate" => File.join(FIXTURES_PATH, "client.pem"),
+      "ssl_key" => File.join(FIXTURES_PATH, "client-key.pem"),
+      "ssl_certificate_authorities" => [File.join(FIXTURES_PATH, "ca.pem")],
+      "ssl_crl_path" => File.join(FIXTURES_PATH, "ca-crl.pem") } }
+
+    context "when ssl_crl_check contains only leaf" do
+      let(:options) { super().merge("ssl_crl_check" => ["leaf"]) }
+
+      it "should register without errors" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
+    context "when ssl_crl_check contains only chain" do
+      let(:options) { super().merge("ssl_crl_check" => ["chain"]) }
+
+      it "should register without errors" do
+        expect { subject.register }.not_to raise_error
+      end
+    end
+
+    context "when ssl_crl_check contains both leaf and chain" do
+      let(:options) { super().merge("ssl_crl_check" => ["leaf", "chain"]) }
+
+      it "should raise ConfigurationError for mutually exclusive options" do
+        expect { subject.register }.to raise_error(LogStash::ConfigurationError, /ssl_crl_check can only contain one of 'leaf' or 'chain'/)
+      end
+    end
+
+    context "when ssl_crl_check is set without ssl_crl_path" do
+      let(:options) { super().reject { |k| k == "ssl_crl_path" }.merge("ssl_crl_check" => ["leaf"]) }
+
+      it "should raise ConfigurationError for missing ssl_crl_path" do
+        expect { subject.register }.to raise_error(LogStash::ConfigurationError, /ssl_crl_check is set but ssl_crl_path is not set/)
+      end
+    end
   end
 end
