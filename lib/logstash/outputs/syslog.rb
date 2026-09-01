@@ -223,6 +223,10 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
 
     begin
       @client_socket ||= connect
+      if !udp? && IO.select([@client_socket], nil, nil, 0) && @client_socket.eof?
+        @client_socket.close rescue nil
+        @client_socket = connect
+      end
       @client_socket.write(syslog_msg + "\n")
     rescue => e
       # We don't expect udp connections to fail because they are stateless, but ...
