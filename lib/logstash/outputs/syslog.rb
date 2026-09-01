@@ -255,6 +255,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
       socket.connect(@host, @port)
     else
       socket = TCPSocket.new(@host, @port)
+      socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true)
       if ssl?
         socket = OpenSSL::SSL::SSLSocket.new(socket, @ssl_context)
         # Use SNI extension
