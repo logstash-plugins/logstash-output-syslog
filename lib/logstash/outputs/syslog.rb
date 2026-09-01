@@ -259,6 +259,7 @@ class LogStash::Outputs::Syslog < LogStash::Outputs::Base
         socket = OpenSSL::SSL::SSLSocket.new(socket, @ssl_context)
         # Use SNI extension
         socket.hostname = @host
+        socket.sync_close = true
         begin
           socket.connect
         rescue OpenSSL::SSL::SSLError => ssle
