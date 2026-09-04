@@ -1,3 +1,6 @@
+## 3.1.1
+  - Fixed TCP and TLS connection handling: the plugin now detects connections closed by the syslog server and reconnects before writing, enables `SO_KEEPALIVE` on TCP sockets, and closes the underlying TCP socket together with the TLS socket [#83](https://github.com/logstash-plugins/logstash-output-syslog/issues/83)
+
 ## 3.1.0
   - Change codec instance comparison [#69](https://github.com/logstash-plugins/logstash-output-syslog/pull/69)
   - Added support for RFC5424 structured data [#67](https://github.com/logstash-plugins/logstash-output-syslog/pull/67)
